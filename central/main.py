@@ -44,17 +44,33 @@ with app.app_context():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    agents = Agent.query.order_by(Agent.last_seen.desc()).all()
+    return render_template('index.html',agents=agents)
 
-@app.route('/add', methods=['POST'])
+@app.route('/ports')
+def ports():
+    ports = Port.query.all()
+    return render_template('ports.html', ports=ports)
+
+@app.route('/add_port', methods=['POST'])
 def add_port():
-    ports = request.form.get('ports')
-    port_list = ports.split(',')
-    for port in port_list:
-        new_port = Port(port_number=int(port.strip()))
+    data = request.get_json()
+    port_number = data.get('port_number')
+    if port_number:
+        new_port = Port(port_number=port_number)
         db.session.add(new_port)
-    db.session.commit()
-    return redirect(url_for('index'))
+        db.session.commit()
+        return jsonify(success=True, port={'id': new_port.id, 'port_number': new_port.port_number})
+    return jsonify(success=False), 400
+
+@app.route('/delete_port/<int:port_id>', methods=['DELETE'])
+def delete_port(port_id):
+    port = Port.query.get(port_id)
+    if port:
+        db.session.delete(port)
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False}), 404
 
 @app.route('/api/agent', methods=['POST'])
 def receive_agent_callhome():

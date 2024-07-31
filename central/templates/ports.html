@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Ports Configuration{% endblock %}
+{% block content %}
+<h2>Manage Ports</h2>
+<form method="post" action="{{ url_for('add_port') }}">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Port</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for port in ports %}
+            <tr>
+                <td>
+                    <input type="hidden" name="port_ids[{{ loop.index0 }}]" value="{{ port.id }}">
+                    <input type="text" name="ports[{{ loop.index0 }}]" value="{{ port.port_number }}" class="form-control">
+                </td>
+                <td>
+                    <button type="button" class="btn btn-danger" onclick="removePort(this, {{ port.id }})">Remove</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <button type="button" class="btn btn-secondary" onclick="addPort()">Add Port</button>
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+</form>
+
+<script>
+            function addPort() {
+                const portNumber = prompt("Enter port number:");
+                if (portNumber) {
+                    fetch('/add_port', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ port_number: portNumber })
+                    }).then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const table = document.querySelector('table tbody');
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>
+                                    <input type="hidden" name="port_ids[${data.port.id}]" value="${data.port.id}">
+                                    <input type="text" name="ports[${data.port.id}]" value="${data.port.port_number}" class="form-control">
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-danger" onclick="removePort(this, ${data.port.id})">Remove</button>
+                                </td>
+                            `;
+                            table.appendChild(row);
+                        } else {
+                            alert('Failed to add port');
+                        }
+                    });
+                }
+            }
+            
+                function removePort(button, portId) {
+                    if (portId) {
+                        fetch(`/delete_port/${portId}`, {
+                            method: 'DELETE'
+                        }).then(response => {
+                            if (response.ok) {
+                                const row = button.closest('tr');
+                                row.remove();
+                            } else {
+                                alert('Failed to delete port');
+                            }
+                        });
+                    } else {
+                        const row = button.closest('tr');
+                        row.remove();
+                    }
+                }
+            </script>
+{% endblock %}

@@ -1,20 +1,26 @@
 {% extends "base.html" %}
 
-{% block title %}Home{% endblock %}
-
 {% block content %}
-    <div class="container mt-5">
-        <h1 class="text-center">Add Ports to Test</h1>
-        <form action="/add" method="post" class="mt-4">
-            <div class="form-group">
-                <label for="ports">Enter ports (comma separated):</label>
-                <input type="text" id="ports" name="ports" class="form-control" placeholder="e.g., 80, 443, 8080">
-            </div>
-            <button type="submit" class="btn btn-primary">Add Ports</button>
-        </form>
-    </div>
-    <!-- Bootstrap JS and dependencies -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-{% endblock %}
+<div class="container mt-5">
+    <h1 class="mb-4">Agents</h1>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>UUID</th>
+                <th>IP Address</th>
+                <th>Last Seen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for agent in agents %}
+            <tr>
+                <td>{{ agent.agent_uuid }}</td>
+                <td>{{ agent.ip_address }}</td>
+                <td>{{ agent.last_seen }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+            {% endblock %}
