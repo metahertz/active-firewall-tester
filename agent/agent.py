@@ -1,4 +1,5 @@
 import argparse
+from envdefault import EnvDefault
 import netifaces
 import uuid
 import requests
@@ -6,6 +7,7 @@ import threading
 import time
 import socket
 import json
+import os
 from queue import Queue
 from datetime import datetime
 
@@ -160,10 +162,13 @@ def handle_udp_connections(udp_socket, agent_uuid):
         udp_socket.sendto(response.encode('utf-8'), addr)
 
 def main():
-    parser = argparse.ArgumentParser(description="Bind this agent to a specific network interface.")
-    parser.add_argument('interface', type=str, help="The network interface to bind to (e.g., eth0, wlan0).")
-    parser.add_argument('api_url', type=str, help="The URL of the remote central API.")
+    parser = argparse.ArgumentParser(description="Options for running the agent with your own API endpoint and one agent per interface for multihomed or VLAN systems.")
+    parser.add_argument('interface', type=str, help="The network interface to bind to (e.g., eth0, wlan0).", action=EnvDefault, envvar='AFT_NET_IFACE')
+    parser.add_argument('api_url', type=str, help="The URL of the remote central API.", action=EnvDefault, envvar='AFT_API_URL')
+
     args = parser.parse_args()
+    if not args.interface:
+        exit(parser.print_usage())
 
     try:
         ip_address = get_ip_address(args.interface)
