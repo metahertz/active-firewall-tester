@@ -13,10 +13,15 @@ A tool to dynamically and repeatedly testing firewall or security groups between
  2. Run as many agents on as many hosts (or multiple on the same host on different interfaces for multi-homed or VLAN-based systems)
 
  ```
- python agent/agent.py eth0 http://central-ip:5000/api/agent
+ python agent/agent.py eth0 http://central-ip:5000
  ```
 
  3. Agents will collect list of other agents IP's from the central API, try to connect to them and report back. You can specify ports (globally) using the UI for the central API at http://central-ip:5000
 
  4. Information will be visualized on which agents can connect to which other agents in the central UI.
- 
+
+
+## API Paths
+Current API paths used by the agent are:
+- `/api/agent` for "registering" and polling the list of other agents (port information is also received in this JSON doc).
+- `/api/results` used for the agent POST'ing the result data about reachability of other agents.

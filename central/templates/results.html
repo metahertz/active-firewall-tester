@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Connection Results{% endblock %}
+
+{% block content %}
+
+<a href="{{ url_for('graph') }}" class="btn btn-secondary mb-4">View Graph</a>
+
+<form method="get" action="{{ url_for('show_results') }}" class="form-inline mb-4">
+    <div class="form-group mr-2">
+        <label for="agent_uuid" class="mr-2">Agent UUID:</label>
+        <input type="text" id="agent_uuid" name="agent_uuid" class="form-control" value="{{ request.args.get('agent_uuid', '') }}">
+    </div>
+    <div class="form-group mr-2">
+        <label for="agent_ip" class="mr-2">Agent IP:</label>
+        <input type="text" id="agent_ip" name="agent_ip" class="form-control" value="{{ request.args.get('agent_ip', '') }}">
+    </div>
+    <div class="form-group mr-2">
+        <label for="port" class="mr-2">Port:</label>
+        <input type="text" id="port" name="port" class="form-control" value="{{ request.args.get('port', '') }}">
+    </div>
+    <div class="form-group mr-2">
+        <label for="sort_by" class="mr-2">Sort By:</label>
+        <select id="sort_by" name="sort_by" class="form-control">
+            <option value="timestamp" {% if request.args.get('sort_by') == 'timestamp' %}selected{% endif %}>Timestamp</option>
+            <option value="status" {% if request.args.get('sort_by') == 'status' %}selected{% endif %}>Status</option>
+            <option value="success" {% if request.args.get('sort_by') == 'success' %}selected{% endif %}>Success</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filter</button>
+</form>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Agent UUID</th>
+            <th>Agent IP</th>
+            <th>IP</th>
+            <th>Port</th>
+            <th>Status</th>
+            <th>Success</th>
+            <th>Timestamp</th>
+            <th>Response</th>
+            <th>Error</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for result in results %}
+        <tr>
+            <td>{{ result.agent_uuid }}</td>
+            <td>{{ result.agent_ip }}</td>
+            <td>{{ result.ip }}</td>
+            <td>{{ result.port }}</td>
+            <td>{{ result.status }}</td>
+            <td>{{ result.success }}</td>
+            <td>{{ result.timestamp }}</td>
+            <td>{{ result.response }}</td>
+            <td>{{ result.error }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
