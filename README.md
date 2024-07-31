@@ -1,6 +1,7 @@
 # active-firewall-tester
 A tool to dynamically and repeatedly testing firewall or security groups between agents on different subnets or networks.
 
+
 ## Status: Very Very early Alpha/PoC.
 
 ## Current Usage:
@@ -24,4 +25,14 @@ A tool to dynamically and repeatedly testing firewall or security groups between
 ## API Paths
 Current API paths used by the agent are:
 - `/api/agent` for "registering" and polling the list of other agents (port information is also received in this JSON doc).
-- `/api/results` used for the agent POST'ing the result data about reachability of other agents.
+- `/api/results` used for the agent POST'ing the result data about reachability of other agents on each of the specified ports.
+
+## Docker Agent
+Currently useful for testing, Interface and API endpoint can be passed in the following ENV variables:
+```
+AFT_NET_IFACE
+AFT_API_URL
+```
+
+### Similar work.
+After demoing this to someone, I was reminded of https://github.com/trustedsec/egressbuster. Great tool (also client/server) for a different usecase of testing holes in outbound firewalls or filtering.
