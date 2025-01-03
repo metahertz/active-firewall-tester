@@ -6,6 +6,10 @@ name = "pypi"
 [packages]
 flask = "*"
 flask-sqlalchemy = "*"
+networkx = "*"
+matplotlib = "*"
+netifaces = "*"
+requests = "*"
 
 [dev-packages]
 
