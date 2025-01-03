@@ -113,7 +113,7 @@ def connect_to_hosts(host_listening_queue, connection_results, agent_uuid, api_u
             except Exception as e:
                 print(f"Error sending connection results to the API server: {str(e)}")
         
-        time.sleep(5)  # Attempt connections every 5 seconds
+        time.sleep(35)  # Attempt connections every 5 seconds
 
 def open_sockets(host_info_queue, agent_uuid, host_listening_queue):
     while True:

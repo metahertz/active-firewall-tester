@@ -1,6 +1,6 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for, send_file
+from flask import Flask, request, jsonify, render_template, redirect, url_for, send_file, Response
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timedelta
 import networkx as nx
 import matplotlib.pyplot as plt
 from io import BytesIO 
@@ -165,39 +165,72 @@ def filter_results():
 
 @app.route('/graph')
 def graph():
-    # Step 1: Extract Data
-    connection_results = ConnectionResult.query.all()
+    # Create a directed graph instead of undirected
+    G = nx.DiGraph()
+    
+    # Get unique results (latest status for each connection)
+    connection_results = ConnectionResult.query\
+        .order_by(ConnectionResult.timestamp.desc())\
+        .all()
 
-    # Step 2: Create Graph
-    G = nx.MultiGraph()
+    # Create a color map for success/failure
+    color_map = {True: 'green', False: 'red'}
+    
+    # Track edges for visualization
+    edges = []
+    edge_colors = []
+    edge_labels = {}
 
     for result in connection_results:
-            print(f"result.ip: {result.ip}. result.port: {result.port}. result.success: {result.success}")
-            if not G.has_node(result.ip):
-                G.add_node(result.ip, label=f"IP: {result.ip}")
-            if not G.has_node(result.agent_ip):
-                G.add_node(result.agent_ip, label=f"IP: {result.ip} Agent: {result.agent_uuid}")
-            G.add_edge(result.agent_ip, result.ip, port=result.port, weight=result.port, success=result.success, edge_labels=result.port)
+        # Add nodes if they don't exist
+        source = result.agent_ip
+        target = result.ip
         
-    # Step 3: Visualize Graph
-    pos = nx.spring_layout(G)  # positions for all nodes
+        if not G.has_node(source):
+            G.add_node(source, node_type='agent')
+        if not G.has_node(target):
+            G.add_node(target, node_type='target')
+            
+        # Create edge key and add to graph
+        edge = (source, target)
+        edge_key = f"{result.port}"
+        
+        # Add edge with port as weight
+        G.add_edge(source, target, 
+                  port=result.port,
+                  success=result.success)
+        
+        edges.append(edge)
+        edge_colors.append(color_map[result.success])
+        edge_labels[edge] = f"Port: {result.port}\n{'✓' if result.success else '✗'}"
 
+    plt.figure(figsize=(12, 8))
+    pos = nx.spring_layout(G, k=1, iterations=50)
+
+    # Draw nodes with different colors for agents vs targets
+    agent_nodes = [node for node, attr in G.nodes(data=True) if attr.get('node_type') == 'agent']
+    target_nodes = [node for node, attr in G.nodes(data=True) if attr.get('node_type') == 'target']
+    
     # Draw nodes
-    nx.draw_networkx_nodes(G, pos, node_size=700)
+    nx.draw_networkx_nodes(G, pos, nodelist=agent_nodes, node_color='lightblue', 
+                          node_size=2000, label='Agents')
+    nx.draw_networkx_nodes(G, pos, nodelist=target_nodes, node_color='lightgreen',
+                          node_size=2000, label='Targets')
 
-    # Draw edges
-    nx.draw_networkx_edges(G, pos, width=2, )
+    # Draw edges with colors based on success
+    nx.draw_networkx_edges(G, pos, edge_color=edge_colors, arrows=True, 
+                          arrowsize=20, width=2)
 
-    # Draw labels
-    nx.draw_networkx_labels(G, pos, font_size=12, font_family='sans-serif')
+    # Add labels
+    nx.draw_networkx_labels(G, pos, font_size=8)
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8)
 
-    # Draw edge labels (ports)
-    edge_labels = {(u, v, k): d['port'] for u, v, k, d in G.edges(data=True, keys=True)}
-    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
-    # Save plot to a BytesIO object
+    plt.title('Network Connectivity Map\nGreen = Success, Red = Failure')
+    plt.legend()
+    
+    # Save plot to BytesIO object
     img = BytesIO()
-    plt.title('Agent-UUID and IP Connections with Ports')
-    plt.savefig(img, format='png')
+    plt.savefig(img, format='png', bbox_inches='tight', dpi=300)
     img.seek(0)
     plt.close()
 
@@ -209,5 +242,75 @@ def get_ports():
     port_list = [{'id': port.id, 'port_number': port.port_number} for port in ports]
     return jsonify(port_list)
 
+@app.route('/metrics')
+def metrics():
+    # Get results from the last minute (adjust timeframe as needed)
+    cutoff_time = (datetime.utcnow() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
+    results = ConnectionResult.query.filter(ConnectionResult.timestamp >= cutoff_time).all()
+    
+    # Initialize metrics string
+    metrics = []
+    
+    # Add help and type information
+    metrics.extend([
+        '# HELP firewall_connection_status Connection test results (1 = success, 0 = failure)',
+        '# TYPE firewall_connection_status gauge',
+        '',
+        '# HELP firewall_connection_total Total number of connection attempts',
+        '# TYPE firewall_connection_total counter',
+        '',
+        '# HELP firewall_node Information about network nodes',
+        '# TYPE firewall_node gauge',
+        '',
+        '# HELP firewall_edge Information about network edges',
+        '# TYPE firewall_edge gauge',
+        ''
+    ])
+    
+    # Track unique nodes and their types
+    nodes = {}
+    edges = {}
+    
+    for result in results:
+        # Track nodes (both source and target)
+        if result.agent_ip not in nodes:
+            nodes[result.agent_ip] = {'type': 'agent', 'connections': 0}
+        if result.ip not in nodes:
+            nodes[result.ip] = {'type': 'target', 'connections': 0}
+        
+        # Update connection counts for nodes
+        nodes[result.agent_ip]['connections'] += 1
+        nodes[result.ip]['connections'] += 1
+        
+        # Track edges
+        edge_key = (result.agent_ip, result.ip, result.port)
+        if edge_key not in edges:
+            edges[edge_key] = {'success': 0, 'failure': 0, 'total': 0}
+        
+        if result.success:
+            edges[edge_key]['success'] += 1
+        else:
+            edges[edge_key]['failure'] += 1
+        edges[edge_key]['total'] += 1
+    
+    # Add node metrics - one series for id and one for stats
+    for ip, data in nodes.items():
+        # Node identity metric
+        metrics.append(f'firewall_node{{id="{ip}",node_type="{data["type"]}"}} 1')
+        # Node stats metric
+        metrics.append(f'firewall_node_stats{{id="{ip}",node_type="{data["type"]}",metric="connections"}} {data["connections"]}')
+    
+    # Add edge metrics
+    for (src_ip, dst_ip, port), data in edges.items():
+        success_rate = data['success'] / data['total'] if data['total'] > 0 else 0
+        # Edge identity metric
+        metrics.append(f'firewall_edge{{source="{src_ip}",target="{dst_ip}",port="{port}"}} 1')
+        # Edge stats metrics
+        metrics.append(f'firewall_edge_stats{{source="{src_ip}",target="{dst_ip}",port="{port}",metric="success_rate"}} {success_rate}')
+        metrics.append(f'firewall_edge_stats{{source="{src_ip}",target="{dst_ip}",port="{port}",metric="total"}} {data["total"]}')
+    
+    # Return metrics in Prometheus format
+    return Response('\n'.join(metrics), mimetype='text/plain')
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')
